@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+# bin/brave_mcp
+
+require_relative "../lib/brave_mcp"
+
+BraveMcp::Server.run

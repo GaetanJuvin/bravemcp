@@ -17,9 +17,9 @@ module BraveMcp
         if selector
           element = page.at_css(selector)
           return { error: "Element not found: #{selector}" } unless element
-          { content: element.property("outerHTML") }
+          { html: element.property("outerHTML") }
         else
-          { content: page.body }
+          { html: page.body }
         end
       end
     end
@@ -37,9 +37,9 @@ module BraveMcp
         if selector
           element = page.at_css(selector)
           return { error: "Element not found: #{selector}" } unless element
-          { content: element.text }
+          { text: element.text }
         else
-          { content: page.at_css("body").text }
+          { text: page.at_css("body").text }
         end
       end
     end

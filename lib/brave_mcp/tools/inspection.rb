@@ -13,12 +13,20 @@ module BraveMcp
         element = page.at_css(selector)
         return { error: "Element not found: #{selector}" } unless element
 
+        # Get attributes via JavaScript
+        attrs = element.evaluate("JSON.stringify(Array.from(this.attributes).reduce((acc, attr) => { acc[attr.name] = attr.value; return acc; }, {}))")
+        attrs = JSON.parse(attrs) rescue {}
+
+        # Get bounding rect via JavaScript
+        bounds = element.evaluate("JSON.stringify(this.getBoundingClientRect())")
+        bounds = JSON.parse(bounds) rescue {}
+
         {
           tag: element.tag_name,
           text: element.text.strip[0..200],
-          attributes: element.attributes,
+          attributes: attrs,
           visible: element.visible?,
-          bounds: element.bounding_rect
+          bounds: bounds
         }
       end
     end

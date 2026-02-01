@@ -26,11 +26,20 @@ module BraveMcp
 
       def call(selector:, timeout: 5000)
         page = BraveMcp::Browser.page
+        timeout_sec = timeout / 1000.0
+        interval = 0.1
+        elapsed = 0
 
-        page.at_css(selector, wait: timeout / 1000.0)
-        { success: true, found: true }
-      rescue Ferrum::NodeNotFoundError
-        { success: false, found: false, error: "Element not found within timeout: #{selector}" }
+        loop do
+          element = page.at_css(selector)
+          return { success: true, found: true } if element
+
+          sleep interval
+          elapsed += interval
+          if elapsed >= timeout_sec
+            return { success: false, found: false, error: "Element not found within timeout: #{selector}" }
+          end
+        end
       end
     end
 

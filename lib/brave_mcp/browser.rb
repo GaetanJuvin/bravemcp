@@ -5,7 +5,15 @@ module BraveMcp
 
     class << self
       def instance
-        @instance ||= connect
+        return @instance if @instance && alive?
+        connect
+      end
+
+      def alive?
+        return false unless @instance
+        @instance.page.evaluate("1 + 1") == 2
+      rescue
+        false
       end
 
       def connect(port: DEFAULT_PORT)

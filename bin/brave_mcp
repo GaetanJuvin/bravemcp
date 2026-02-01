@@ -1,6 +1,8 @@
-#!/usr/bin/env ruby
+#!/bin/bash
 # bin/brave_mcp
 
-require_relative "../lib/brave_mcp"
+# Change to script directory
+cd "$(dirname "$0")/.."
 
-BraveMcp::Server.run
+# Run with bundler to ensure gems are found
+exec bundle exec ruby -Ilib -e "require 'brave_mcp'; BraveMcp::Server.run"

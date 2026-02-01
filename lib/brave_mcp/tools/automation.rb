@@ -88,7 +88,20 @@ module BraveMcp
         element = page.at_css(selector)
         return { error: "Element not found: #{selector}" } unless element
 
-        element.hover
+        # Scroll element into view first
+        element.scroll_into_view
+
+        # Get element's bounding box via JavaScript
+        box = element.evaluate("JSON.stringify(this.getBoundingClientRect())")
+        box = JSON.parse(box)
+
+        # Calculate center of the element
+        x = box["x"] + box["width"] / 2.0
+        y = box["y"] + box["height"] / 2.0
+
+        # Move mouse to center of element
+        page.mouse.move(x: x, y: y)
+
         { success: true }
       end
     end

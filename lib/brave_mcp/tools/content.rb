@@ -1,5 +1,6 @@
 # lib/brave_mcp/tools/content.rb
 require "base64"
+require "mini_magick"
 
 module BraveMcp
   module Tools
@@ -54,6 +55,8 @@ module BraveMcp
     end
 
     class Screenshot < FastMcp::Tool
+      MAX_DIMENSION = 2000
+
       description "Take a screenshot of the page or a specific element"
 
       arguments do
@@ -64,13 +67,43 @@ module BraveMcp
       def call(selector: nil, full_page: false)
         page = BraveMcp::Browser.page
 
-        options = { encoding: :base64 }
+        # Create screenshots directory
+        screenshot_dir = "/tmp/brave_mcp_screenshots"
+        Dir.mkdir(screenshot_dir) unless Dir.exist?(screenshot_dir)
+
+        # Generate unique filename with timestamp
+        timestamp = Time.now.strftime("%Y%m%d_%H%M%S_%L")
+        filename = "screenshot_#{timestamp}.png"
+        filepath = File.join(screenshot_dir, filename)
+
+        options = { path: filepath }
         options[:full] = true if full_page
         options[:selector] = selector if selector
 
-        data = page.screenshot(**options)
+        page.screenshot(**options)
 
-        { image: data, format: "png" }
+        # Resize if dimensions exceed max (for API compatibility)
+        resize_if_needed(filepath)
+
+        { path: filepath, format: "png" }
+      end
+
+      private
+
+      def resize_if_needed(filepath)
+        image = MiniMagick::Image.open(filepath)
+        width = image.width
+        height = image.height
+
+        return if width <= MAX_DIMENSION && height <= MAX_DIMENSION
+
+        # Calculate scale factor to fit within MAX_DIMENSION
+        scale = [MAX_DIMENSION.to_f / width, MAX_DIMENSION.to_f / height].min
+        new_width = (width * scale).to_i
+        new_height = (height * scale).to_i
+
+        image.resize("#{new_width}x#{new_height}")
+        image.write(filepath)
       end
     end
   end

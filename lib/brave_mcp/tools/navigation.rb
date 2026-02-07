@@ -16,6 +16,8 @@ module BraveMcp
         { success: true, url: BraveMcp::Browser.page.current_url }
       rescue Ferrum::StatusError => e
         { error: "Navigation failed: #{e.message}" }
+      rescue Ferrum::TimeoutError
+        { success: true, url: BraveMcp::Browser.page.current_url }
       end
     end
 

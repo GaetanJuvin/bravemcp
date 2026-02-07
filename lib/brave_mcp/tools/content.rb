@@ -92,6 +92,8 @@ module BraveMcp
         { path: filepath, format: "png" }
       rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
         { error: "Screenshot failed (#{selector || 'page'}): #{e.message}" }
+      rescue Ferrum::TimeoutError
+        { error: "Screenshot timed out. The page may be loading slowly — try again." }
       end
 
       private

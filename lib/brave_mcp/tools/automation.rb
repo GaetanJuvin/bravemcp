@@ -17,6 +17,8 @@ module BraveMcp
         { success: true }
       rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
         { error: "Element not interactable (#{selector}): #{e.message}" }
+      rescue Ferrum::TimeoutError
+        { error: "Timed out interacting with element (#{selector}). The page may be loading slowly — try again." }
       end
     end
 
@@ -51,6 +53,8 @@ module BraveMcp
         { success: true }
       rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
         { error: "Element not interactable (#{selector}): #{e.message}" }
+      rescue Ferrum::TimeoutError
+        { error: "Timed out interacting with element (#{selector}). The page may be loading slowly — try again." }
       end
     end
 
@@ -79,6 +83,8 @@ module BraveMcp
         { success: true }
       rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
         { error: "Element not interactable (#{selector}): #{e.message}" }
+      rescue Ferrum::TimeoutError
+        { error: "Timed out interacting with element (#{selector}). The page may be loading slowly — try again." }
       end
     end
 
@@ -111,6 +117,8 @@ module BraveMcp
         { success: true }
       rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
         { error: "Element not interactable (#{selector}): #{e.message}" }
+      rescue Ferrum::TimeoutError
+        { error: "Timed out interacting with element (#{selector}). The page may be loading slowly — try again." }
       end
     end
 
@@ -139,6 +147,8 @@ module BraveMcp
         { success: true }
       rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
         { error: "Element not interactable (#{selector}): #{e.message}" }
+      rescue Ferrum::TimeoutError
+        { error: "Timed out interacting with element (#{selector}). The page may be loading slowly — try again." }
       end
     end
 
@@ -158,6 +168,8 @@ module BraveMcp
         { success: true }
       rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
         { error: "Element not interactable (#{selector}): #{e.message}" }
+      rescue Ferrum::TimeoutError
+        { error: "Timed out interacting with element (#{selector}). The page may be loading slowly — try again." }
       end
     end
   end

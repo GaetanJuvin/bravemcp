@@ -11,7 +11,7 @@ module BraveMcp
       def call(script:)
         result = BraveMcp::Browser.page.evaluate(script)
         { result: result }
-      rescue Ferrum::JavaScriptError => e
+      rescue Ferrum::JavaScriptError, Ferrum::BrowserError => e
         { error: e.message }
       end
     end

@@ -15,6 +15,8 @@ module BraveMcp
 
         element.click
         { success: true }
+      rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
+        { error: "Element not interactable (#{selector}): #{e.message}" }
       end
     end
 
@@ -47,6 +49,8 @@ module BraveMcp
 
         element.focus.type(value)
         { success: true }
+      rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
+        { error: "Element not interactable (#{selector}): #{e.message}" }
       end
     end
 
@@ -73,6 +77,8 @@ module BraveMcp
         end
 
         { success: true }
+      rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
+        { error: "Element not interactable (#{selector}): #{e.message}" }
       end
     end
 
@@ -103,6 +109,8 @@ module BraveMcp
         page.mouse.move(x: x, y: y)
 
         { success: true }
+      rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
+        { error: "Element not interactable (#{selector}): #{e.message}" }
       end
     end
 
@@ -129,6 +137,8 @@ module BraveMcp
         end
 
         { success: true }
+      rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
+        { error: "Element not interactable (#{selector}): #{e.message}" }
       end
     end
 
@@ -146,6 +156,8 @@ module BraveMcp
 
         element.focus
         { success: true }
+      rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
+        { error: "Element not interactable (#{selector}): #{e.message}" }
       end
     end
   end

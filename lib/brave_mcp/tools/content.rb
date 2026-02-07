@@ -21,6 +21,8 @@ module BraveMcp
         else
           { html: page.body }
         end
+      rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
+        { error: "Element not interactable (#{selector}): #{e.message}" }
       end
     end
 
@@ -41,6 +43,8 @@ module BraveMcp
         else
           { text: page.at_css("body").text }
         end
+      rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
+        { error: "Element not interactable (#{selector}): #{e.message}" }
       end
     end
 
@@ -86,6 +90,8 @@ module BraveMcp
         resize_if_needed(filepath)
 
         { path: filepath, format: "png" }
+      rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
+        { error: "Screenshot failed (#{selector || 'page'}): #{e.message}" }
       end
 
       private

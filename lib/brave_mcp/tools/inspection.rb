@@ -28,6 +28,8 @@ module BraveMcp
           visible: element.visible?,
           bounds: bounds
         }
+      rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
+        { error: "Element not interactable (#{selector}): #{e.message}" }
       end
     end
 

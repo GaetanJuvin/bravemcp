@@ -29,19 +29,19 @@ bundle install
 
 ## Usage
 
-### 1. Start Brave with remote debugging
+### 1. Run the MCP server
 
-```bash
-/Applications/Brave\ Browser.app/Contents/MacOS/Brave\ Browser --remote-debugging-port=9222
-```
-
-### 2. Run the MCP server
+The server automatically launches Brave with a dedicated profile (`~/.brave-mcp-profile`). No manual browser launch needed.
 
 ```bash
 bin/brave_mcp
 ```
 
-### 3. Configure Claude Code
+On first run, sign into your accounts in the Brave window that opens. Your sessions persist across restarts since the profile is saved to disk.
+
+If Brave is already running with `--remote-debugging-port=9222`, the server connects to it instead of launching a new instance.
+
+### 2. Configure Claude Code
 
 Add to your Claude Code MCP settings:
 
@@ -54,6 +54,13 @@ Add to your Claude Code MCP settings:
   }
 }
 ```
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BRAVE_MCP_PROFILE` | `~/.brave-mcp-profile` | Path to the browser profile directory |
+| `BRAVE_MCP_PATH` | `/Applications/Brave Browser.app/Contents/MacOS/Brave Browser` | Path to the Brave executable |
 
 ## Available Tools
 

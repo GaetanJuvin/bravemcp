@@ -11,6 +11,11 @@ module BraveMcp
       def call(url:)
         BraveMcp::Browser.page.go_to(url)
         { success: true, url: BraveMcp::Browser.page.current_url }
+      rescue Ferrum::PendingConnectionsError
+        # Page loaded but has lingering connections (extensions, realtime, etc.)
+        { success: true, url: BraveMcp::Browser.page.current_url }
+      rescue Ferrum::StatusError => e
+        { error: "Navigation failed: #{e.message}" }
       end
     end
 
@@ -28,6 +33,8 @@ module BraveMcp
           BraveMcp::Browser.page.refresh
         end
         { success: true, url: BraveMcp::Browser.page.current_url }
+      rescue Ferrum::PendingConnectionsError
+        { success: true, url: BraveMcp::Browser.page.current_url }
       end
     end
 
@@ -39,6 +46,8 @@ module BraveMcp
       def call
         BraveMcp::Browser.page.back
         { success: true, url: BraveMcp::Browser.page.current_url }
+      rescue Ferrum::PendingConnectionsError
+        { success: true, url: BraveMcp::Browser.page.current_url }
       end
     end
 
@@ -49,6 +58,8 @@ module BraveMcp
 
       def call
         BraveMcp::Browser.page.forward
+        { success: true, url: BraveMcp::Browser.page.current_url }
+      rescue Ferrum::PendingConnectionsError
         { success: true, url: BraveMcp::Browser.page.current_url }
       end
     end

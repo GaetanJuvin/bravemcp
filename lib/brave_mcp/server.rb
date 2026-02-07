@@ -6,10 +6,14 @@ module BraveMcp
 
       register_tools(server)
 
-      # Attempt connection on startup to fail fast with helpful message
+      # Connect to existing Brave or auto-launch with dedicated profile
       begin
         Browser.instance
-        $stderr.puts "BraveMCP connected to Brave browser"
+        if Browser.brave_pid
+          $stderr.puts "BraveMCP launched and connected to Brave browser (PID: #{Browser.brave_pid})"
+        else
+          $stderr.puts "BraveMCP connected to existing Brave browser"
+        end
       rescue Browser::ConnectionError => e
         $stderr.puts "Warning: #{e.message}"
         $stderr.puts "Tools will attempt to connect on first use."

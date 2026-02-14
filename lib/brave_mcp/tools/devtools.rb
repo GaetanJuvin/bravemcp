@@ -41,7 +41,7 @@ module BraveMcp
       end
 
       def call(filter: nil)
-        traffic = BraveMcp::Browser.page.traffic
+        traffic = BraveMcp::Browser.page.network.traffic
 
         requests = traffic.map do |exchange|
           req = exchange.request
@@ -51,7 +51,7 @@ module BraveMcp
             id: exchange.id,
             url: req&.url,
             method: req&.method,
-            type: exchange.type,
+            type: req&.type,
             status: resp&.status,
             size: resp&.body_size
           }
@@ -73,7 +73,7 @@ module BraveMcp
       end
 
       def call(request_id:)
-        traffic = BraveMcp::Browser.page.traffic
+        traffic = BraveMcp::Browser.page.network.traffic
         exchange = traffic.find { |ex| ex.id == request_id }
 
         return { error: "Request not found: #{request_id}" } unless exchange

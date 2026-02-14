@@ -25,7 +25,7 @@ module BraveMcp
           tag: element.tag_name,
           text: element.text.strip[0..200],
           attributes: attrs,
-          visible: element.visible?,
+          visible: element.evaluate("this.offsetParent !== null || getComputedStyle(this).display !== 'none'"),
           bounds: bounds
         }
       rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e

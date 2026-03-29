@@ -139,20 +139,32 @@ module BraveMcp
           return { error: "Element not found: #{selector}" } unless element
           element.scroll_into_view
         elsif x || y
-          # Use CDP mouse wheel events instead of window.scrollBy so the
-          # browser treats it as real user input.  This forces the compositor
-          # to repaint (even for background tabs) and triggers lazy-loading
-          # observers that ignore programmatic scrolls.
-          viewport_w = page.evaluate("window.innerWidth")
-          viewport_h = page.evaluate("window.innerHeight")
+          # Use the viewport dimensions we already know from browser setup
+          # instead of calling page.evaluate() which can timeout on heavy pages.
+          viewport_w = BraveMcp::Browser::DEFAULT_VIEWPORT_WIDTH
+          viewport_h = BraveMcp::Browser::DEFAULT_VIEWPORT_HEIGHT
 
-          page.command("Input.dispatchMouseEvent",
-            type: "mouseWheel",
-            x: viewport_w / 2,
-            y: viewport_h / 2,
-            deltaX: x || 0,
-            deltaY: y || 0
-          )
+          begin
+            # Use CDP mouse wheel events instead of window.scrollBy so the
+            # browser treats it as real user input.  This forces the compositor
+            # to repaint (even for background tabs) and triggers lazy-loading
+            # observers that ignore programmatic scrolls.
+            page.command("Input.dispatchMouseEvent",
+              type: "mouseWheel",
+              x: viewport_w / 2,
+              y: viewport_h / 2,
+              deltaX: x || 0,
+              deltaY: y || 0
+            )
+          rescue Ferrum::TimeoutError
+            # Fallback: use programmatic scroll via CDP Runtime.evaluate.
+            # Less ideal (won't trigger IntersectionObserver-based lazy
+            # loading) but more reliable on heavy pages.
+            page.command("Runtime.evaluate",
+              expression: "window.scrollBy(#{x || 0}, #{y || 0})",
+              awaitPromise: false
+            )
+          end
           # Give the browser a moment to composite the new frame
           sleep 0.3
         else

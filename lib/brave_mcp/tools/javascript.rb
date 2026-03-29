@@ -9,7 +9,36 @@ module BraveMcp
       end
 
       def call(script:)
-        result = BraveMcp::Browser.page.evaluate(script)
+        page = BraveMcp::Browser.page
+
+        # Ferrum's evaluate() wraps the script in a function and returns
+        # the *completion value* of the last expression.  Multi-statement
+        # scripts like "window.scrollTo(0,800); 'done'" work because JS
+        # completion semantics return the last expression.  However,
+        # statements whose completion value is `undefined` (assignments,
+        # void calls) produce nil in Ruby.
+        #
+        # To give callers the most useful result, try the direct evaluate
+        # first.  If it returns nil *and* the script looks like it has
+        # multiple statements, re-run via CDP Runtime.evaluate which
+        # returns the raw protocol result and handles completion values
+        # more faithfully.
+        result = page.evaluate(script)
+
+        if result.nil?
+          # Try CDP directly — returnByValue gives us primitives, and
+          # we check the result subtype to distinguish real nil from void.
+          raw = page.command("Runtime.evaluate",
+            expression: script,
+            returnByValue: true,
+            awaitPromise: false
+          )
+          remote = raw.dig("result")
+          if remote && remote["type"] != "undefined"
+            result = remote["value"]
+          end
+        end
+
         { result: result }
       rescue Ferrum::JavaScriptError, Ferrum::BrowserError => e
         { error: e.message }

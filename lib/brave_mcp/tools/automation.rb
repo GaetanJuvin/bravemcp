@@ -131,6 +131,70 @@ module BraveMcp
         optional(:y).filled(:integer).description("Vertical scroll amount in pixels")
       end
 
+      # Probes multiple viewport points to find the largest scrollable
+      # container, handling pages with nested overflow areas, fixed
+      # headers, or overlay elements that cover the viewport center.
+      FIND_SCROLL_TARGET_JS = <<~JS
+        (function() {
+          var vw = window.innerWidth;
+          var vh = window.innerHeight;
+
+          var probes = [
+            [vw / 2, vh / 2],
+            [vw / 2, vh * 0.65],
+            [vw / 2, vh * 0.35],
+            [vw * 0.25, vh / 2],
+            [vw * 0.75, vh / 2]
+          ];
+
+          var best = null;
+          var bestArea = 0;
+          var seen = [];
+
+          function alreadySeen(el) {
+            for (var i = 0; i < seen.length; i++) {
+              if (seen[i] === el) return true;
+            }
+            return false;
+          }
+
+          function findScrollableAt(x, y) {
+            var el = document.elementFromPoint(x, y);
+            while (el && el !== document.documentElement && el !== document.body) {
+              var style = window.getComputedStyle(el);
+              var oy = style.overflowY;
+              if ((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight) {
+                return el;
+              }
+              el = el.parentElement;
+            }
+            return null;
+          }
+
+          for (var i = 0; i < probes.length; i++) {
+            var el = findScrollableAt(probes[i][0], probes[i][1]);
+            if (el && !alreadySeen(el)) {
+              seen.push(el);
+              var rect = el.getBoundingClientRect();
+              var area = rect.width * rect.height;
+              if (area > bestArea) {
+                bestArea = area;
+                best = rect;
+              }
+            }
+          }
+
+          if (best) {
+            return {
+              x: Math.max(0, Math.min(vw - 1, best.x + best.width / 2)),
+              y: Math.max(0, Math.min(vh - 1, best.y + best.height / 2))
+            };
+          }
+
+          return { x: vw / 2, y: vh / 2 };
+        })()
+      JS
+
       def call(selector: nil, x: nil, y: nil)
         page = BraveMcp::Browser.page
 
@@ -139,10 +203,18 @@ module BraveMcp
           return { error: "Element not found: #{selector}" } unless element
           element.scroll_into_view
         elsif x || y
-          # Use the viewport dimensions we already know from browser setup
-          # instead of calling page.evaluate() which can timeout on heavy pages.
-          viewport_w = BraveMcp::Browser::DEFAULT_VIEWPORT_WIDTH
-          viewport_h = BraveMcp::Browser::DEFAULT_VIEWPORT_HEIGHT
+          # Find the best scroll target by detecting scrollable containers
+          # (overflow: auto/scroll) rather than always dispatching at the
+          # viewport center, which misses nested scroll areas.
+          # Fall back to viewport center constants if JS evaluation times out.
+          begin
+            target = page.evaluate(FIND_SCROLL_TARGET_JS)
+            target_x = target["x"].to_i
+            target_y = target["y"].to_i
+          rescue Ferrum::TimeoutError
+            target_x = BraveMcp::Browser::DEFAULT_VIEWPORT_WIDTH / 2
+            target_y = BraveMcp::Browser::DEFAULT_VIEWPORT_HEIGHT / 2
+          end
 
           begin
             # Use CDP mouse wheel events instead of window.scrollBy so the
@@ -151,8 +223,8 @@ module BraveMcp
             # observers that ignore programmatic scrolls.
             page.command("Input.dispatchMouseEvent",
               type: "mouseWheel",
-              x: viewport_w / 2,
-              y: viewport_h / 2,
+              x: target_x,
+              y: target_y,
               deltaX: x || 0,
               deltaY: y || 0
             )

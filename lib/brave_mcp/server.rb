@@ -19,6 +19,12 @@ module BraveMcp
         $stderr.puts "Tools will attempt to connect on first use."
       end
 
+      at_exit do
+        Browser.reset!
+      rescue StandardError
+        # Browser may already be gone -- ignore cleanup errors
+      end
+
       server.start
     end
 

@@ -8,6 +8,8 @@ module BraveMcp
     BRAVE_PATH = "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
     MAX_CONNECT_RETRIES = 10
     RETRY_DELAY = 1 # seconds
+    DEFAULT_VIEWPORT_WIDTH = 1280
+    DEFAULT_VIEWPORT_HEIGHT = 800
 
     class << self
       def instance
@@ -66,7 +68,7 @@ module BraveMcp
       def connect_to_existing(port)
         @instance = Ferrum::Browser.new(url: "http://localhost:#{port}")
         @page = @instance.create_page
-        setup_console_listener
+        setup_page
         @instance
       end
 
@@ -75,7 +77,7 @@ module BraveMcp
         begin
           @instance = Ferrum::Browser.new(url: "http://localhost:#{port}")
           @page = @instance.create_page
-          setup_console_listener
+          setup_page
           @instance
         rescue Ferrum::Error, Errno::ECONNREFUSED => e
           retries += 1
@@ -119,6 +121,27 @@ module BraveMcp
 
       def brave_path
         ENV.fetch("BRAVE_MCP_PATH", BRAVE_PATH)
+      end
+
+      def setup_page
+        setup_viewport
+        setup_console_listener
+      end
+
+      def setup_viewport
+        # Override the viewport so the browser renders the page at a fixed
+        # size independent of the actual window/tab dimensions.  This also
+        # forces Chrome to composite the page even when the tab is in the
+        # background, which prevents blank/white screenshots after scrolling.
+        width  = ENV.fetch("BRAVE_MCP_VIEWPORT_WIDTH",  DEFAULT_VIEWPORT_WIDTH).to_i
+        height = ENV.fetch("BRAVE_MCP_VIEWPORT_HEIGHT", DEFAULT_VIEWPORT_HEIGHT).to_i
+
+        @page.command("Emulation.setDeviceMetricsOverride",
+          width: width,
+          height: height,
+          deviceScaleFactor: 1,
+          mobile: false
+        )
       end
 
       def setup_console_listener

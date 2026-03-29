@@ -80,11 +80,33 @@ module BraveMcp
         filename = "screenshot_#{timestamp}.png"
         filepath = File.join(screenshot_dir, filename)
 
-        options = { path: filepath }
-        options[:full] = true if full_page
-        options[:selector] = selector if selector
+        if selector
+          page.screenshot(path: filepath, selector: selector)
+        elsif full_page
+          page.screenshot(path: filepath, full: true)
+        else
+          # Use CDP directly with captureBeyondViewport + clip so Chrome
+          # rasterises the target region even when the tab is in the
+          # background (the normal Page.captureScreenshot skips tiles
+          # that haven't been composited for background tabs).
+          viewport_w = page.evaluate("window.innerWidth")
+          viewport_h = page.evaluate("window.innerHeight")
+          scroll_x   = page.evaluate("window.scrollX")
+          scroll_y   = page.evaluate("window.scrollY")
 
-        page.screenshot(**options)
+          result = page.command("Page.captureScreenshot",
+            format: "png",
+            clip: {
+              x: scroll_x,
+              y: scroll_y,
+              width: viewport_w,
+              height: viewport_h,
+              scale: 1
+            },
+            captureBeyondViewport: true
+          )
+          File.binwrite(filepath, Base64.decode64(result["data"]))
+        end
 
         # Resize if dimensions exceed max (for API compatibility)
         resize_if_needed(filepath)

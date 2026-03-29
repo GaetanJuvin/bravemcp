@@ -18,14 +18,21 @@ module BraveMcp
       end
 
       def alive?
-        return false unless @instance && @page
-        @page.evaluate("1 + 1") == 2
+        return false unless @instance
+        if @page
+          @page.evaluate("1 + 1") == 2
+        else
+          # No page yet -- assume the recently-created instance is still
+          # alive.  If it isn't, page creation will fail and we reconnect.
+          true
+        end
       rescue
         false
       end
 
       def connect_or_launch(port: DEFAULT_PORT)
         @console_logs = []
+        @page = nil # clear stale page reference from previous connection
         connect_to_existing(port)
       rescue Ferrum::Error, Errno::ECONNREFUSED
         if brave_running?
@@ -40,7 +47,21 @@ module BraveMcp
       end
 
       def page
-        @page || instance && @page
+        instance # ensure browser is connected
+        unless @page
+          begin
+            @page = @instance.create_page
+            setup_page
+          rescue Ferrum::Error
+            # Browser connection may have died since startup -- reconnect
+            @instance = nil
+            @page = nil
+            instance
+            @page = @instance.create_page
+            setup_page
+          end
+        end
+        @page
       end
 
       def console_logs
@@ -67,18 +88,12 @@ module BraveMcp
 
       def connect_to_existing(port)
         @instance = Ferrum::Browser.new(url: "http://localhost:#{port}")
-        @page = @instance.create_page
-        setup_page
-        @instance
       end
 
       def connect_with_retry(port)
         retries = 0
         begin
           @instance = Ferrum::Browser.new(url: "http://localhost:#{port}")
-          @page = @instance.create_page
-          setup_page
-          @instance
         rescue Ferrum::Error, Errno::ECONNREFUSED => e
           retries += 1
           if retries < MAX_CONNECT_RETRIES

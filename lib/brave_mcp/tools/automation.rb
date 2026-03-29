@@ -139,7 +139,22 @@ module BraveMcp
           return { error: "Element not found: #{selector}" } unless element
           element.scroll_into_view
         elsif x || y
-          page.execute("window.scrollBy(#{x || 0}, #{y || 0})")
+          # Use CDP mouse wheel events instead of window.scrollBy so the
+          # browser treats it as real user input.  This forces the compositor
+          # to repaint (even for background tabs) and triggers lazy-loading
+          # observers that ignore programmatic scrolls.
+          viewport_w = page.evaluate("window.innerWidth")
+          viewport_h = page.evaluate("window.innerHeight")
+
+          page.command("Input.dispatchMouseEvent",
+            type: "mouseWheel",
+            x: viewport_w / 2,
+            y: viewport_h / 2,
+            deltaX: x || 0,
+            deltaY: y || 0
+          )
+          # Give the browser a moment to composite the new frame
+          sleep 0.3
         else
           return { error: "Must provide selector or x/y coordinates" }
         end

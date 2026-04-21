@@ -1,11 +1,13 @@
 # lib/brave_mcp/browser.rb
 require "fileutils"
+require "shellwords"
 
 module BraveMcp
   class Browser
     DEFAULT_PORT = 9222
     DEFAULT_PROFILE_DIR = File.expand_path("~/.brave-mcp-profile")
-    BRAVE_PATH = "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
+    BRAVE_PATH_MAC = "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
+    BRAVE_PATH_WINDOWS = "/mnt/c/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe"
     MAX_CONNECT_RETRIES = 10
     RETRY_DELAY = 1 # seconds
     DEFAULT_VIEWPORT_WIDTH = 1280
@@ -34,7 +36,7 @@ module BraveMcp
         @console_logs = []
         @page = nil # clear stale page reference from previous connection
         connect_to_existing(port)
-      rescue Ferrum::Error, Errno::ECONNREFUSED
+      rescue Ferrum::Error, Errno::ECONNREFUSED, Net::OpenTimeout, IO::TimeoutError
         if brave_running?
           # Brave is open but without --remote-debugging-port
           # Restart it with the debug port enabled
@@ -87,14 +89,22 @@ module BraveMcp
       private
 
       def connect_to_existing(port)
+        probe_debug_port!(port)
         @instance = Ferrum::Browser.new(url: "http://localhost:#{port}")
+      end
+
+      def probe_debug_port!(port, timeout: 3)
+        require "socket"
+        Socket.tcp("localhost", port, connect_timeout: timeout) { |s| s.close }
+      rescue Errno::ECONNREFUSED, Errno::ETIMEDOUT, SocketError => e
+        raise Ferrum::Error, "No browser on localhost:#{port}: #{e.message}"
       end
 
       def connect_with_retry(port)
         retries = 0
         begin
           @instance = Ferrum::Browser.new(url: "http://localhost:#{port}")
-        rescue Ferrum::Error, Errno::ECONNREFUSED => e
+        rescue Ferrum::Error, Errno::ECONNREFUSED, Net::OpenTimeout, IO::TimeoutError => e
           retries += 1
           if retries < MAX_CONNECT_RETRIES
             $stderr.puts "Waiting for Brave to start (attempt #{retries}/#{MAX_CONNECT_RETRIES})..."
@@ -107,35 +117,67 @@ module BraveMcp
       end
 
       def launch_brave(port: DEFAULT_PORT)
-        profile_dir = ENV.fetch("BRAVE_MCP_PROFILE", DEFAULT_PROFILE_DIR)
-        FileUtils.mkdir_p(profile_dir)
+        if wsl? && !ENV.key?("BRAVE_MCP_PROFILE")
+          # Use a native Windows path so Brave doesn't get a UNC \\wsl.localhost path
+          win_profile = windows_profile_dir
+          linux_profile = `wslpath -u #{Shellwords.escape(win_profile)}`.strip
+          FileUtils.mkdir_p(linux_profile)
+          effective_profile = win_profile
+          $stderr.puts "Launching Brave with profile: #{win_profile}"
+        else
+          profile_dir = ENV.fetch("BRAVE_MCP_PROFILE", DEFAULT_PROFILE_DIR)
+          FileUtils.mkdir_p(profile_dir)
+          effective_profile = wsl? ? wsl_to_windows_path(profile_dir) : profile_dir
+          $stderr.puts "Launching Brave with profile: #{profile_dir}"
+        end
 
-        $stderr.puts "Launching Brave with profile: #{profile_dir}"
-
-        @brave_pid = Process.spawn(
+        args = [
           brave_path,
           "--remote-debugging-port=#{port}",
-          "--user-data-dir=#{profile_dir}",
+          "--user-data-dir=#{effective_profile}",
           "--no-first-run",
-          [:out, :err] => File::NULL
-        )
+        ]
+        @brave_pid = Process.spawn(*args, [:out, :err] => File::NULL)
         Process.detach(@brave_pid)
       end
 
       def brave_running?
-        !`pgrep -f "Brave Browser"`.strip.empty?
+        if wsl?
+          !`tasklist.exe 2>/dev/null`.lines.grep(/brave\.exe/i).empty?
+        else
+          !`pgrep -f "Brave Browser"`.strip.empty?
+        end
       rescue
         false
       end
 
       def kill_brave
-        system("pkill", "-f", "Brave Browser")
+        if wsl?
+          system("taskkill.exe", "/f", "/im", "brave.exe", [:out, :err] => File::NULL)
+        else
+          system("pkill", "-f", "Brave Browser", [:out, :err] => File::NULL)
+        end
       rescue
         nil
       end
 
       def brave_path
-        ENV.fetch("BRAVE_MCP_PATH", BRAVE_PATH)
+        ENV.fetch("BRAVE_MCP_PATH", wsl? ? BRAVE_PATH_WINDOWS : BRAVE_PATH_MAC)
+      end
+
+      def wsl?
+        @wsl ||= File.exist?("/proc/sys/fs/binfmt_misc/WSLInterop") ||
+                 (File.exist?("/proc/version") && File.read("/proc/version").downcase.include?("microsoft"))
+      end
+
+      def wsl_to_windows_path(path)
+        `wslpath -w #{Shellwords.escape(path)}`.strip
+      end
+
+      def windows_profile_dir
+        win_home = `cmd.exe /c echo %USERPROFILE% 2>/dev/null`.strip.gsub("\r", "")
+        win_home = 'C:\\Users\\Public' if win_home.empty? || win_home.include?('%')
+        "#{win_home}\\.brave-mcp-profile"
       end
 
       def setup_page

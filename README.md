@@ -2,31 +2,26 @@
 
 An MCP (Model Context Protocol) server that provides browser automation capabilities for the Brave browser. Enables AI models like Claude to control and interact with web browsers through a standardized interface.
 
-## Features
-
-- **Navigation** - Navigate URLs, reload, back/forward, get current URL
-- **DOM Interaction** - Click, type, fill forms, select dropdowns, hover, scroll, focus
-- **Content Extraction** - Get HTML, text, page title, take screenshots
-- **DOM Inspection** - Query elements, get element info and attributes
-- **JavaScript Execution** - Run scripts, wait for selectors/navigation
-- **DevTools** - Console logs, network requests, performance metrics
-- **Storage** - Cookies and localStorage management
-
 ## Prerequisites
 
 - Ruby 3.x
 - Bundler
-- Brave Browser (macOS or Windows — WSL2 is supported, see below)
+- Brave Browser (macOS, or Windows via WSL2 — see below)
 - ImageMagick (for screenshot resizing)
 
 ## Installation
 
+Install ImageMagick if needed (Ubuntu/WSL2):
+
 ```bash
-# Install ImageMagick if needed, Ubuntu:
-# sudo apt-get install -y imagemagick
+sudo apt-get install -y imagemagick
+```
+
+```bash
 git clone <repository-url>
 cd BraveMCP
 bundle install
+chmod +x bin/brave_mcp
 ```
 
 ## Usage
@@ -54,20 +49,14 @@ WSL2 is supported out of the box. The server detects WSL2 automatically and:
 - Launches the Windows Brave executable (`C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe`)
 - Stores the profile at `C:\Users\<you>\.brave-mcp-profile` (a native Windows path, avoiding UNC path issues)
 
-**Required:** enable mirrored networking so WSL2 can reach the Windows debug port. Create `C:\Users\<you>\.wslconfig` with:
+**Required one-time setup:** enable mirrored networking so WSL2 can reach the Windows debug port. Create `C:\Users\<you>\.wslconfig` with:
 
 ```ini
 [wsl2]
 networkingMode=mirrored
 ```
 
-Then restart WSL (`wsl --shutdown` from a Windows terminal). This is a one-time setup.
-
-**Also required:** install ImageMagick inside WSL:
-
-```bash
-sudo apt-get install -y imagemagick
-```
+Finally, restart WSL by running `wsl --shutdown` from a Windows terminal.
 
 ### 2. Configure Claude Code
 
@@ -77,13 +66,11 @@ Add to your Claude Code MCP settings (global settings under `~/.claude/mcp.json`
 {
   "mcpServers": {
     "brave": {
-      "command": "$PATH_TO_BRAVEMCP_CLONE/bin/brave_mcp"
+      "command": "/path/to/bravemcp/bin/brave_mcp"
     }
   }
 }
 ```
-
-The path is relative to the project directory. Alternatively use an absolute path if you need to reference it from a global Claude Code config.
 
 ### Environment Variables
 

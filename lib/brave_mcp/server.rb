@@ -6,18 +6,10 @@ module BraveMcp
 
       register_tools(server)
 
-      # Connect to existing Brave or auto-launch with dedicated profile
-      begin
-        Browser.instance
-        if Browser.brave_pid
-          $stderr.puts "BraveMCP launched and connected to Brave browser (PID: #{Browser.brave_pid})"
-        else
-          $stderr.puts "BraveMCP connected to existing Brave browser"
-        end
-      rescue Browser::ConnectionError => e
-        $stderr.puts "Warning: #{e.message}"
-        $stderr.puts "Tools will attempt to connect on first use."
-      end
+      # Brave is launched/connected lazily on the first tool use
+      # (Browser.page), so opening the MCP server never spawns a window
+      # or tab on its own.
+      $stderr.puts "BraveMCP ready; Brave will be launched on first tool use."
 
       at_exit do
         Browser.reset!

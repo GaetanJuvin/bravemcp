@@ -10,7 +10,7 @@ module BraveMcp
 
       def call(selector:)
         page = BraveMcp::Browser.page
-        element = page.at_css(selector)
+        element = resolve_element(page, selector)
         return { error: "Element not found: #{selector}" } unless element
 
         element.click
@@ -19,6 +19,35 @@ module BraveMcp
         { error: "Element not interactable (#{selector}): #{e.message}" }
       rescue Ferrum::TimeoutError
         { error: "Timed out interacting with element (#{selector}). The page may be loading slowly — try again." }
+      end
+
+      private
+
+      def resolve_element(page, selector)
+        if (match = selector.match(/^(.+):has-text\(["'](.+?)["']\)$/))
+          tag, text = match[1], match[2]
+          find_by_text(page, tag, text)
+        elsif selector.start_with?("text=")
+          text = selector.sub("text=", "").gsub(/^["']|["']$/, "")
+          find_by_text(page, "*", text)
+        else
+          page.at_css(selector)
+        end
+      end
+
+      def find_by_text(page, tag, text)
+        escaped = text.gsub("\\", "\\\\\\\\").gsub("'", "\\\\'")
+        js = <<~JS
+          (() => {
+            const els = document.querySelectorAll('#{tag}');
+            for (const el of els) {
+              if (el.textContent.trim().includes('#{escaped}')) return el;
+            }
+            return null;
+          })()
+        JS
+        node = page.evaluate(js)
+        node
       end
     end
 
@@ -31,13 +60,18 @@ module BraveMcp
 
       def call(text:)
         page = BraveMcp::Browser.page
+
+        # Select all existing text and delete it first
+        page.keyboard.press("Meta+a")
+        page.keyboard.press("Backspace")
+
         page.keyboard.type(text)
         { success: true }
       end
     end
 
     class Fill < FastMcp::Tool
-      description "Fill an input field with text"
+      description "Fill an input field with text (React-compatible)"
 
       arguments do
         required(:selector).filled(:string).description("CSS selector of the input field")
@@ -49,7 +83,29 @@ module BraveMcp
         element = page.at_css(selector)
         return { error: "Element not found: #{selector}" } unless element
 
-        element.focus.type(value)
+        element.focus
+
+        escaped = value.gsub("\\", "\\\\\\\\").gsub("'", "\\\\'")
+
+        # Use the native value setter to bypass React's synthetic event system,
+        # then dispatch input+change events so React picks up the new value.
+        element.evaluate(<<~JS)
+          (() => {
+            const nativeSetter = Object.getOwnPropertyDescriptor(
+              window.HTMLInputElement.prototype, 'value'
+            )?.set || Object.getOwnPropertyDescriptor(
+              window.HTMLTextAreaElement.prototype, 'value'
+            )?.set;
+            if (nativeSetter) {
+              nativeSetter.call(this, '#{escaped}');
+            } else {
+              this.value = '#{escaped}';
+            }
+            this.dispatchEvent(new Event('input', { bubbles: true }));
+            this.dispatchEvent(new Event('change', { bubbles: true }));
+          })()
+        JS
+
         { success: true }
       rescue Ferrum::BrowserError, Ferrum::NodeNotFoundError => e
         { error: "Element not interactable (#{selector}): #{e.message}" }
